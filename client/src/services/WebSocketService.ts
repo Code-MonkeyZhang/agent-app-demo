@@ -108,7 +108,7 @@ export class WebSocketService implements IWebSocketService {
           this.rtt = rtt;
           this.rttCallbacks.forEach(callback => callback(rtt));
           console.log(`[WS] Pong received, RTT: ${rtt}ms`);
-          await this.logger?.logHeartbeatReceived(message, rtt);
+          await this.logger?.logPongReceived(message, rtt);
         } else {
           await this.logger?.logMessageReceived(message.type, message.id, event.data.length);
         }
