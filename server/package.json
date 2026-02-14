@@ -1,6 +1,7 @@
 {
   "name": "llm-remote-bridge-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "LLM Remote Bridge MVP - Server Side",
   "main": "dist/index.js",
   "scripts": {
@@ -16,12 +17,17 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "@modelcontextprotocol/sdk": "^1.1.0",
     "cloudflared": "^0.7.1",
     "dotenv": "^16.4.5",
     "node-fetch": "^3.3.2",
+    "openai": "^6.10.0",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^4.7.1",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "yaml": "^2.8.2",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",

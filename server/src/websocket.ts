@@ -1,8 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import { Message, UserInputMessage, ClientLogMessage, PingMessage, PongMessage } from './types.js';
-import { MockLLMAdapter } from './mock-adapter.js';
-import { LLMAdapter } from './llm-adapter.js';
+import { Message, UserInputMessage, ClientLogMessage, PingMessage, PongMessage, ThinkingMessage, ToolCallMessage, ToolResultMessage } from './types.js';
 import { ConnectionLogger, ClientLogger, serverLogger } from './logger.js';
+import type { Agent, AgentProgress } from './agent.js';
 
 interface ConnectionMetadata {
   id: string;
@@ -19,43 +18,32 @@ interface ConnectionMetadata {
 
 export class WebSocketHandler {
   private wss: WebSocketServer;
-  private llmAdapter: MockLLMAdapter | LLMAdapter;
+  private agent: Agent;
   private connections: Map<WebSocket, ConnectionMetadata>;
   private totalConnections: number = 0;
   private totalMessagesSent: number = 0;
   private totalMessagesReceived: number = 0;
-  
-  constructor(port: number) {
+
+  constructor(port: number, agent: Agent) {
     this.wss = new WebSocketServer({ port });
+    this.agent = agent;
     this.connections = new Map();
-    
-    const baseUrl = process.env.LLM_BASE_URL;
-    const apiKey = process.env.LLM_API_KEY;
-    const model = process.env.LLM_MODEL;
-    
-    if (baseUrl && apiKey && apiKey !== 'your-api-key-here') {
-      serverLogger.info('[WS] Using real LLM API');
-      this.llmAdapter = new LLMAdapter(baseUrl, apiKey, model);
-    } else {
-      serverLogger.info('[WS] Using mock LLM (no API key provided)');
-      this.llmAdapter = new MockLLMAdapter();
-    }
-    
+
     this.setupHandlers();
     serverLogger.info(`[WS] Server started on port ${port}`);
-    
+
     setInterval(() => this.logMetrics(), 60000);
   }
-  
+
   private setupHandlers(): void {
     this.wss.on('connection', (ws: WebSocket, req) => {
       const connId = this.generateConnectionId();
       const remoteAddress = req.socket.remoteAddress || 'unknown';
       const userAgent = req.headers['user-agent'];
-      
+
       const logger = new ConnectionLogger(connId);
       const clientLogger = new ClientLogger(connId);
-      
+
       const metadata: ConnectionMetadata = {
         id: connId,
         startTime: Date.now(),
@@ -68,17 +56,17 @@ export class WebSocketHandler {
         logger,
         clientLogger,
       };
-      
+
       this.connections.set(ws, metadata);
       this.totalConnections++;
-      
+
       logger.info('Client connected', {
         remoteAddress,
         userAgent,
       });
-      
+
       this.sendSystemStatus(ws, 'connected', 'Connection established successfully.');
-      
+
       ws.on('message', async (data: Buffer) => {
         const meta = this.connections.get(ws);
         if (meta) {
@@ -86,14 +74,9 @@ export class WebSocketHandler {
           meta.messagesReceived++;
           this.totalMessagesReceived++;
         }
-        
+
         try {
           const message: Message = JSON.parse(data.toString());
-          meta?.logger.debug('Message received', {
-            messageType: message.type,
-            messageId: message.id,
-            contentLength: data.length,
-          });
           await this.handleMessage(ws, message, connId);
         } catch (error) {
           meta?.logger.error('Error parsing message', {
@@ -101,13 +84,13 @@ export class WebSocketHandler {
           });
         }
       });
-      
+
       ws.on('close', (code: number, reason: Buffer) => {
         const meta = this.connections.get(ws);
         if (meta) {
           const duration = Date.now() - meta.startTime;
           const lastActivityAge = Date.now() - meta.lastActivity;
-          
+
           meta.logger.info('Client disconnected', {
             closeCode: code,
             closeReason: reason.toString(),
@@ -116,12 +99,12 @@ export class WebSocketHandler {
             messagesReceived: meta.messagesReceived,
             lastActivityAge: `${(lastActivityAge / 1000).toFixed(2)}s`,
           });
-          
+
           meta.logger.close();
           this.connections.delete(ws);
         }
       });
-      
+
       ws.on('error', (error: Error) => {
         const meta = this.connections.get(ws);
         meta?.logger.error('WebSocket error', {
@@ -130,7 +113,7 @@ export class WebSocketHandler {
           stack: error.stack,
         });
       });
-      
+
       ws.on('pong', () => {
         const meta = this.connections.get(ws);
         if (meta) {
@@ -138,7 +121,7 @@ export class WebSocketHandler {
         }
       });
     });
-    
+
     this.wss.on('error', (error: Error) => {
       serverLogger.error('[WS] Server error', {
         errorType: error.name,
@@ -147,112 +130,186 @@ export class WebSocketHandler {
       });
     });
   }
-  
+
   private async handleMessage(ws: WebSocket, message: Message, connId: string): Promise<void> {
-    const timestamp = Date.now();
-    const meta = this.connections.get(ws);
-    
     switch (message.type) {
       case 'user_input':
         await this.handleUserInput(ws, message as UserInputMessage, connId);
         break;
-      
+
       case 'ping':
         await this.handlePing(ws, message as PingMessage, connId);
         break;
-      
+
       case 'client_log':
         await this.handleClientLog(ws, message as ClientLogMessage, connId);
         break;
-      
+
       default:
-        meta?.logger.warn('Unknown message type', {
-          messageType: message.type,
-        });
+        break;
     }
   }
-  
+
   private async handleUserInput(ws: WebSocket, message: UserInputMessage, connId: string): Promise<void> {
     const meta = this.connections.get(ws);
+
     try {
-      const responseText = await this.llmAdapter.generateResponse(message.payload.text);
-      
-      const response: Message = {
-        type: 'llm_output',
-        payload: { text: responseText },
-        timestamp: Date.now(),
-        id: this.generateId(),
-        reply_to: message.id
+      const handleProgress = (progress: AgentProgress) => {
+        switch (progress.type) {
+          case 'thinking':
+            this.sendThinking(ws, progress.data.text, message.id);
+            break;
+          case 'tool_call':
+            this.sendToolCall(ws, progress.data, message.id);
+            break;
+          case 'tool_result':
+            this.sendToolResult(ws, progress.data, message.id);
+            break;
+          case 'completion':
+            this.sendMessage(ws, {
+              type: 'llm_output',
+              payload: { text: progress.data.text },
+              reply_to: message.id,
+            });
+            break;
+        }
+
+        if (meta) {
+          meta.messagesSent++;
+          this.totalMessagesSent++;
+          meta.lastActivity = Date.now();
+        }
       };
-      
-      const messageStr = JSON.stringify(response);
-      ws.send(messageStr);
-      
-      if (meta) {
-        meta.messagesSent++;
-        this.totalMessagesSent++;
-        meta.lastActivity = Date.now();
-        
-        meta.logger.debug('Message sent', {
-          messageType: 'llm_output',
-          messageId: response.id,
-          contentLength: messageStr.length,
-        });
-      }
+
+      this.agent.setProgressCallback(handleProgress);
+      const response = await this.agent.chat(message.payload.text);
+      this.agent.setProgressCallback(undefined);
     } catch (error) {
-      meta?.logger.error('LLM generation error', {
+      meta?.logger.error('Agent execution error', {
         error: error instanceof Error ? error.message : String(error),
       });
-      
-      const errorMessage: Message = {
+
+      await this.sendMessage(ws, {
         type: 'llm_output',
         payload: { text: '抱歉，AI 服务暂时不可用，请稍后再试。' },
-        timestamp: Date.now(),
-        id: this.generateId(),
-        reply_to: message.id
-      };
-      
-      const messageStr = JSON.stringify(errorMessage);
-      ws.send(messageStr);
-      
-      if (meta) {
-        meta.messagesSent++;
-        this.totalMessagesSent++;
-        
-        meta.logger.debug('Message sent (error)', {
-          messageType: 'llm_output',
-          messageId: errorMessage.id,
-          contentLength: messageStr.length,
-        });
-      }
+        reply_to: message.id,
+      });
     }
   }
-  
-  
+
+  private async sendMessage(ws: WebSocket, message: any): Promise<void> {
+    const fullMessage: Message = {
+      type: message.type as any,
+      payload: message.payload,
+      timestamp: Date.now(),
+      id: this.generateId(),
+      reply_to: message.reply_to,
+    } as any;
+
+    const messageStr = JSON.stringify(fullMessage);
+    ws.send(messageStr);
+
+    const meta = this.connections.get(ws);
+    if (meta) {
+      meta.logger.debug('Message sent', {
+        messageType: fullMessage.type,
+        messageId: fullMessage.id,
+        contentLength: messageStr.length,
+      });
+    }
+  }
+
+  private sendThinking(ws: WebSocket, text: string, replyTo: string): void {
+    const message: ThinkingMessage = {
+      type: 'thinking',
+      timestamp: Date.now(),
+      id: this.generateId(),
+      payload: { text },
+    };
+
+    ws.send(JSON.stringify(message));
+
+    const meta = this.connections.get(ws);
+    if (meta) {
+      meta.logger.debug('Thinking sent', {
+        messageId: message.id,
+      });
+    }
+  }
+
+  private sendToolCall(ws: WebSocket, data: any, replyTo: string): void {
+    const message: ToolCallMessage = {
+      type: 'tool_call',
+      timestamp: Date.now(),
+      id: this.generateId(),
+      payload: {
+        id: data.id,
+        name: data.name,
+        arguments: data.arguments,
+      },
+    };
+
+    ws.send(JSON.stringify(message));
+
+    const meta = this.connections.get(ws);
+    if (meta) {
+      meta.logger.debug('Tool call sent', {
+        toolName: data.name,
+        messageId: message.id,
+      });
+    }
+  }
+
+  private sendToolResult(ws: WebSocket, data: any, replyTo: string): void {
+    const message: ToolResultMessage = {
+      type: 'tool_result',
+      timestamp: Date.now(),
+      id: this.generateId(),
+      payload: {
+        tool_call_id: data.tool_call_id,
+        tool_name: data.tool_name,
+        success: data.success,
+        content: data.content,
+        error: data.error,
+      },
+    };
+
+    ws.send(JSON.stringify(message));
+
+    const meta = this.connections.get(ws);
+    if (meta) {
+      meta.logger.debug('Tool result sent', {
+        toolName: data.tool_name,
+        success: data.success,
+        messageId: message.id,
+      });
+    }
+  }
+
   private async handlePing(ws: WebSocket, message: PingMessage, connId: string): Promise<void> {
     const response: Message = {
       type: 'pong',
       timestamp: Date.now(),
       id: this.generateId()
     };
-    
+
     ws.send(JSON.stringify(response));
-    
-    const metaAfter = this.connections.get(ws);
-    if (metaAfter) {
-      metaAfter.messagesSent++;
+
+    const meta = this.connections.get(ws);
+    if (meta) {
+      meta.messagesSent++;
       this.totalMessagesSent++;
-      
-      metaAfter.logger.debug('Pong sent', {
+
+      meta.logger.debug('Pong sent', {
         messageId: response.id,
       });
     }
   }
-  
+
   private async handleClientLog(ws: WebSocket, message: ClientLogMessage, connId: string): Promise<void> {
     const meta = this.connections.get(ws);
     if (!meta) return;
-    
+
     try {
       await meta.clientLogger.saveLogs(message.payload.logs);
     } catch (error) {
@@ -261,7 +318,7 @@ export class WebSocketHandler {
       });
     }
   }
-  
+
   private sendSystemStatus(ws: WebSocket, status: 'connected' | 'disconnected' | 'error', message: string): void {
     const meta = this.connections.get(ws);
     const statusMessage: Message = {
@@ -270,9 +327,9 @@ export class WebSocketHandler {
       timestamp: Date.now(),
       id: this.generateId()
     };
-    
+
     ws.send(JSON.stringify(statusMessage));
-    
+
     if (meta) {
       meta.messagesSent++;
       meta.logger.debug('Message sent', {
@@ -281,15 +338,15 @@ export class WebSocketHandler {
       });
     }
   }
-  
+
   private generateId(): string {
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
-  
+
   private generateConnectionId(): string {
     return `conn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
-  
+
   private logMetrics(): void {
     serverLogger.info('[WS] Connection metrics', {
       totalConnections: this.totalConnections,
@@ -298,7 +355,7 @@ export class WebSocketHandler {
       totalMessagesReceived: this.totalMessagesReceived,
     });
   }
-  
+
   public close(): void {
     this.wss.close();
     serverLogger.info('[WS] Server closed');

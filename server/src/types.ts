@@ -1,4 +1,4 @@
-export type MessageType = 'user_input' | 'ping' | 'pong' | 'llm_output' | 'system_status' | 'client_log';
+export type MessageType = 'user_input' | 'ping' | 'pong' | 'llm_output' | 'system_status' | 'client_log' | 'thinking' | 'tool_call' | 'tool_result';
 
 export interface BaseMessage {
   type: MessageType;
@@ -61,4 +61,37 @@ export interface ClientLogMessage extends BaseMessage {
   payload: ClientLogPayload;
 }
 
-export type Message = UserInputMessage | PingMessage | PongMessage | LLMOutputMessage | SystemStatusMessage | ClientLogMessage;
+export interface ThinkingPayload {
+  text: string;
+}
+
+export interface ThinkingMessage extends BaseMessage {
+  type: 'thinking';
+  payload: ThinkingPayload;
+}
+
+export interface ToolCallPayload {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface ToolCallMessage extends BaseMessage {
+  type: 'tool_call';
+  payload: ToolCallPayload;
+}
+
+export interface ToolResultPayload {
+  tool_call_id: string;
+  tool_name: string;
+  success: boolean;
+  content: string;
+  error?: string;
+}
+
+export interface ToolResultMessage extends BaseMessage {
+  type: 'tool_result';
+  payload: ToolResultPayload;
+}
+
+export type Message = UserInputMessage | PingMessage | PongMessage | LLMOutputMessage | SystemStatusMessage | ClientLogMessage | ThinkingMessage | ToolCallMessage | ToolResultMessage;

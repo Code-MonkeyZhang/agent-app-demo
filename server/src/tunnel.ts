@@ -32,7 +32,7 @@ export class CloudflareTunnel extends EventEmitter {
 
         const args = [
           'tunnel',
-          '--url', `http://localhost:${this.localPort}`,
+          '--url', `localhost:${this.localPort}`,
           '--protocol', this.protocol,
           '--no-autoupdate'
         ];

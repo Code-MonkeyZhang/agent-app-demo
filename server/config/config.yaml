@@ -1,0 +1,36 @@
+# LLM Configuration
+apiKey: "sk-d08cfeb7e0a54f73ab341039da95608b"
+apiBase: "https://api.deepseek.com/v1"
+model: "deepseek-chat"
+provider: "openai"
+
+# Alternative: Anthropic
+# apiKey: "sk-ant-your-api-key-here"
+# apiBase: "https://api.anthropic.com"
+# model: "claude-3-5-sonnet-20241022"
+# provider: "anthropic"
+
+# LLM provider: "anthropic" or "openai"
+
+# Logging Configuration
+enableLogging: false
+
+# Retry Configuration
+retry:
+  enabled: true
+  maxRetries: 3
+
+# Agent Configuration
+agent:
+  maxSteps: 100
+  systemPromptPath: "system_prompt.md"
+
+# Tools Configuration
+tools:
+  enableMcp: true
+  mcpConfigPath: "mcp.json"
+  mcp:
+    connectTimeout: 10.0
+    executeTimeout: 60.0
+    sseReadTimeout: 120.0
+  skillsDir: "skills"

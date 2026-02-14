@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "netease-openapi-mcp": {
+      "command": "/Users/zhangyufeng/Downloads/agent_space/mcp/cloud-music-mcp/.venv/bin/cloud-music-mcp"
+    },
+    "ticktick": {
+      "command": "/Users/zhangyufeng/Downloads/agent_space/mcp/ticktick-mcp-enhanced/.venv/bin/ticktick-mcp",
+      "env": {
+        "TICKTICK_ACCOUNT_TYPE": "china",
+        "TICKTICK_CLIENT_ID": "Dkvk32FT9f7Rz5hCNH",
+        "TICKTICK_CLIENT_SECRET": "K*9456K1Guxz2a67%7G#4TlEMKi&f)L(",
+        "TICKTICK_REDIRECT_URI": "http://localhost:8000/callback"
+      }
+    }
+  }
+}

@@ -55,9 +55,45 @@ export const useWebSocket = (url: string) => {
           createdAt: new Date(message.timestamp),
           user: AI_USER,
           reply_to: message.reply_to,
+          messageType: 'ai',
         };
 
         setMessages((prev) => [...prev, aiMessage]);
+      } else if (message.type === 'thinking') {
+        const thinkingMessage: ChatMessage = {
+          _id: message.id,
+          text: `💭 ${message.payload.text}`,
+          createdAt: new Date(message.timestamp),
+          user: AI_USER,
+          messageType: 'thinking',
+        };
+
+        setMessages((prev) => [...prev, thinkingMessage]);
+      } else if (message.type === 'tool_call') {
+        const toolCallMessage: ChatMessage = {
+          _id: message.id,
+          text: `🔧 调用工具: ${message.payload.name}`,
+          createdAt: new Date(message.timestamp),
+          user: AI_USER,
+          messageType: 'tool_call',
+          toolName: message.payload.name,
+        };
+
+        setMessages((prev) => [...prev, toolCallMessage]);
+      } else if (message.type === 'tool_result') {
+        const statusText = message.payload.success ? '✅ 成功' : '❌ 失败';
+        const toolResultMessage: ChatMessage = {
+          _id: message.id,
+          text: `${statusText}: ${message.payload.tool_name}\n${message.payload.content}`,
+          createdAt: new Date(message.timestamp),
+          user: AI_USER,
+          messageType: 'tool_result',
+          toolName: message.payload.tool_name,
+          toolSuccess: message.payload.success,
+          toolError: message.payload.error,
+        };
+
+        setMessages((prev) => [...prev, toolResultMessage]);
       }
     };
 

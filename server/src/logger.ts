@@ -2,7 +2,7 @@ import winston from 'winston';
 import path from 'path';
 import { createWriteStream } from 'fs';
 import { promises as fsPromises } from 'fs';
-import { ClientLogEntry } from './types';
+import { ClientLogEntry } from './types.js';
 
 const logDir = path.join(process.cwd(), 'logs');
 

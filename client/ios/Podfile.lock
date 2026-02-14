@@ -28,6 +28,10 @@ PODS:
     - Yoga
   - ExpoAsset (12.0.12):
     - ExpoModulesCore
+  - ExpoClipboard (8.0.8):
+    - ExpoModulesCore
+  - ExpoDevice (8.0.10):
+    - ExpoModulesCore
   - ExpoFileSystem (19.0.21):
     - ExpoModulesCore
   - ExpoFont (14.0.11):
@@ -1759,13 +1763,17 @@ PODS:
     - React-utils (= 0.81.5)
     - ReactNativeDependencies
   - ReactNativeDependencies (0.81.5)
+  - RNDeviceInfo (15.0.1):
+    - React-Core
   - Yoga (0.0.0)
 
 DEPENDENCIES:
   - EXConstants (from `../node_modules/expo/node_modules/expo-constants/ios`)
   - Expo (from `../node_modules/expo`)
   - ExpoAsset (from `../node_modules/expo/node_modules/expo-asset/ios`)
-  - ExpoFileSystem (from `../node_modules/expo/node_modules/expo-file-system/ios`)
+  - ExpoClipboard (from `../node_modules/expo-clipboard/ios`)
+  - ExpoDevice (from `../node_modules/expo-device/ios`)
+  - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo/node_modules/expo-font/ios`)
   - ExpoKeepAwake (from `../node_modules/expo/node_modules/expo-keep-awake/ios`)
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
@@ -1837,6 +1845,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
+  - RNDeviceInfo (from `../node_modules/react-native-device-info`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 EXTERNAL SOURCES:
@@ -1846,8 +1855,12 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo"
   ExpoAsset:
     :path: "../node_modules/expo/node_modules/expo-asset/ios"
+  ExpoClipboard:
+    :path: "../node_modules/expo-clipboard/ios"
+  ExpoDevice:
+    :path: "../node_modules/expo-device/ios"
   ExpoFileSystem:
-    :path: "../node_modules/expo/node_modules/expo-file-system/ios"
+    :path: "../node_modules/expo-file-system/ios"
   ExpoFont:
     :path: "../node_modules/expo/node_modules/expo-font/ios"
   ExpoKeepAwake:
@@ -1989,6 +2002,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   ReactNativeDependencies:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
+  RNDeviceInfo:
+    :path: "../node_modules/react-native-device-info"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -1996,6 +2011,8 @@ SPEC CHECKSUMS:
   EXConstants: 3feb66fd1d94202fc1f0946d74e029d8b224b60e
   Expo: 7f5e64b5d18096dcec86814764b526b0cb97811c
   ExpoAsset: d999f3bbd998a750f3b74cb913229848901b926b
+  ExpoClipboard: 50fa3332136758be7ca2ea912bae585f74bb93c3
+  ExpoDevice: 0773c782b055558ca9b40b74aa4a8133a66cd0d2
   ExpoFileSystem: aefcd337b94b874f88752ebefc52813b84992fad
   ExpoFont: c625dbd97ed57e9089b172b2a7bb99003d074664
   ExpoKeepAwake: 44bf6715bc1d2ddb17afe19d927cd039cda123f0
@@ -2067,6 +2084,7 @@ SPEC CHECKSUMS:
   ReactCodegen: 4c44b74b77fc41ae25b9e2c7e9bd6e2bc772c23f
   ReactCommon: e6e232202a447d353e5531f2be82f50f47cbaa9a
   ReactNativeDependencies: 71ce9c28beb282aa720ea7b46980fff9669f428a
+  RNDeviceInfo: 53f9c84e28e854a308d3e548e25ef120b4615531
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
 
 PODFILE CHECKSUM: dfe3cc75dee014a0abd367bc9e1bdbab0ba64ee3

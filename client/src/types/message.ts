@@ -1,5 +1,5 @@
 // 消息类型
-export type MessageType = 'user_input' | 'ping' | 'pong' | 'llm_output' | 'system_status' | 'client_log';
+export type MessageType = 'user_input' | 'ping' | 'pong' | 'llm_output' | 'system_status' | 'client_log' | 'thinking' | 'tool_call' | 'tool_result';
 
 // 通用消息格式
 export interface BaseMessage {
@@ -69,16 +69,58 @@ export interface ClientLogMessage extends BaseMessage {
   payload: ClientLogPayload;
 }
 
+// 思考状态
+export interface ThinkingPayload {
+  text: string;
+}
+
+export interface ThinkingMessage extends BaseMessage {
+  type: 'thinking';
+  payload: ThinkingPayload;
+}
+
+// 工具调用
+export interface ToolCallPayload {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface ToolCallMessage extends BaseMessage {
+  type: 'tool_call';
+  payload: ToolCallPayload;
+}
+
+// 工具执行结果
+export interface ToolResultPayload {
+  tool_call_id: string;
+  tool_name: string;
+  success: boolean;
+  content: string;
+  error?: string;
+}
+
+export interface ToolResultMessage extends BaseMessage {
+  type: 'tool_result';
+  payload: ToolResultPayload;
+}
+
 // 所有消息类型
-export type Message = UserInputMessage | PingMessage | PongMessage | LLMOutputMessage | SystemStatusMessage | ClientLogMessage;
+export type Message = UserInputMessage | PingMessage | PongMessage | LLMOutputMessage | SystemStatusMessage | ClientLogMessage | ThinkingMessage | ToolCallMessage | ToolResultMessage;
 
 // 聊天消息（用于 UI 显示）
+export type ChatMessageType = 'user' | 'ai' | 'thinking' | 'tool_call' | 'tool_result';
+
 export interface ChatMessage {
   _id: string;
   text: string;
   createdAt: Date;
   user: User;
   reply_to?: string;
+  messageType?: ChatMessageType;
+  toolName?: string;
+  toolSuccess?: boolean;
+  toolError?: string;
 }
 
 export interface User {

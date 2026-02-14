@@ -101,7 +101,7 @@ export class WebSocketService implements IWebSocketService {
     this.ws.onmessage = async (event) => {
       try {
         const message = JSON.parse(event.data) as Message;
-        
+
         // 处理 Pong 消息（计算 RTT）
         if (message.type === 'pong' && this.lastPingTime > 0) {
           const rtt = message.timestamp - this.lastPingTime;
@@ -112,7 +112,7 @@ export class WebSocketService implements IWebSocketService {
         } else {
           await this.logger?.logMessageReceived(message.type, message.id, event.data.length);
         }
-        
+
         this.handleMessage(message);
       } catch (error) {
         console.error('[WS] Failed to parse message:', error);
@@ -136,29 +136,6 @@ export class WebSocketService implements IWebSocketService {
       await this.logger?.logError(errorObj);
       this.setStatus(ConnectionStatus.ERROR, errorObj.message);
     };
-  }
-
-  /**
-   * 处理接收到的消息
-   */
-  private handleMessage(message: Message): void {
-    switch (message.type) {
-      case 'system_status':
-        console.log('[WS] System status:', message.payload);
-        break;
-      
-      case 'llm_output':
-        this.messageCallbacks.forEach(callback => callback(message));
-        console.log('[WS] Received LLM output:', message.payload.text);
-        break;
-      
-      case 'pong':
-        // Pong 已经在 onmessage 中处理，这里不做任何事情
-        break;
-      
-      default:
-        console.log('[WS] Unknown message type:', message.type);
-    }
   }
 
   /**
@@ -279,23 +256,6 @@ export class WebSocketService implements IWebSocketService {
   }
 
   /**
-   * 断开连接
-   */
-  disconnect(): void {
-    this.stopReconnect();
-    this.stopPing();
-    
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
-
-    this.setStatus(ConnectionStatus.DISCONNECTED);
-    console.log('[WS] Disconnected');
-    this.logger = null;
-  }
-
-  /**
    * 发送日志到服务器
    */
   private sendLogsToServer(logs: any[]): void {
@@ -323,11 +283,11 @@ export class WebSocketService implements IWebSocketService {
    */
   disconnect(): void {
     this.stopReconnect();
-    this.stopHeartbeat();
-    
+    this.stopPing();
+
     this.logger?.flush();
     this.logger?.close();
-    
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -367,20 +327,35 @@ export class WebSocketService implements IWebSocketService {
       case 'user_input':
         // 不处理，这是客户端发送的
         break;
-      
+
       case 'llm_output':
         this.messageCallbacks.forEach(callback => callback(message));
         console.log('[WS] Received LLM output:', message.payload.text);
         break;
-      
+
+      case 'thinking':
+        this.messageCallbacks.forEach(callback => callback(message));
+        console.log('[WS] Thinking:', message.payload.text);
+        break;
+
+      case 'tool_call':
+        this.messageCallbacks.forEach(callback => callback(message));
+        console.log('[WS] Tool Call:', message.payload.name, message.payload.arguments);
+        break;
+
+      case 'tool_result':
+        this.messageCallbacks.forEach(callback => callback(message));
+        console.log('[WS] Tool Result:', message.payload.success ? 'SUCCESS' : 'FAILED', message.payload.tool_name);
+        break;
+
       case 'pong':
         // Pong 消息已经在上面的 onmessage 中处理
         break;
-      
+
       case 'system_status':
         console.log('[WS] System status:', message.payload);
         break;
-      
+
       default:
         console.log('[WS] Unknown message type:', message.type);
     }
